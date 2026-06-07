@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, Lock, ArrowRight } from 'lucide-react';
+import { Lock, ArrowRight } from 'lucide-react';
 
 export default function AdminLogin({ onLogin }: { onLogin: (pw: string) => boolean }) {
   const [password, setPassword] = useState('');
@@ -22,9 +22,7 @@ export default function AdminLogin({ onLogin }: { onLogin: (pw: string) => boole
         border: '1px solid #334155', borderRadius: 16, padding: 40, width: '100%', maxWidth: 440,
       }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ display: 'inline-flex', padding: 12, background: 'rgba(239,68,68,0.1)', borderRadius: 16, marginBottom: 16 }}>
-            <Shield size={40} color="#ef4444" />
-          </div>
+          <img src="/logo.png" alt="AgeSmart Admin" style={{ width: 80, height: 80, borderRadius: 12, marginBottom: 16 }} />
           <h1 style={{ fontSize: 28, fontWeight: 800, color: '#f1f5f9', marginBottom: 8 }}>Admin Access</h1>
           <p style={{ color: '#64748b', fontSize: 14 }}>Enter the admin password to continue</p>
         </div>

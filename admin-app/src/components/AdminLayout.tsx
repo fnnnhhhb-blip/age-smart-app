@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { Shield, CreditCard, Users, Sliders, LogOut } from 'lucide-react';
+import { CreditCard, Users, Sliders, LogOut } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: CreditCard, label: 'Subscriptions', end: true },
@@ -15,9 +15,9 @@ export default function AdminLayout({ onLogout }: { onLogout: () => void }) {
         borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', padding: '24px 0',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 24px', marginBottom: 8 }}>
-          <Shield size={32} color="#ef4444" />
+          <img src="/logo.png" alt="AgeSmart Admin" style={{ width: 48, height: 48, borderRadius: 8 }} />
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9' }}>AgeSmart</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9' }}>Age Smart</div>
             <div style={{ fontSize: 11, color: '#ef4444', letterSpacing: 1, fontWeight: 600 }}>ADMIN PANEL</div>
           </div>
         </div>

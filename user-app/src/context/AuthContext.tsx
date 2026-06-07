@@ -19,6 +19,7 @@ interface AuthContextType {
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -121,8 +122,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
+    if (!user) return false;
+    const users = await getUsers();
+    const idx = users.findIndex((u) => u.id === user.id);
+    if (idx === -1 || users[idx].password !== currentPassword) return false;
+    users[idx].password = newPassword;
+    await saveUsers(users);
+    return true;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn: !!user, login, signup, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoggedIn: !!user, login, signup, logout, updateUser, changePassword }}>
       {children}
     </AuthContext.Provider>
   );
