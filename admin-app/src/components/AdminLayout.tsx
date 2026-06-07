@@ -1,13 +1,10 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { Shield, LayoutDashboard, Users, CheckCircle, CreditCard, Globe, Settings, LogOut } from 'lucide-react';
+import { Shield, CreditCard, Users, Sliders, LogOut } from 'lucide-react';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Overview', end: true },
+  { to: '/', icon: CreditCard, label: 'Subscriptions', end: true },
   { to: '/users', icon: Users, label: 'Users' },
-  { to: '/verifications', icon: CheckCircle, label: 'Verifications' },
-  { to: '/subscriptions', icon: CreditCard, label: 'Subscriptions' },
-  { to: '/proxy', icon: Globe, label: 'Proxy Config' },
-  { to: '/settings', icon: Settings, label: 'App Settings' },
+  { to: '/app-control', icon: Sliders, label: 'App Control' },
 ];
 
 export default function AdminLayout({ onLogout }: { onLogout: () => void }) {
