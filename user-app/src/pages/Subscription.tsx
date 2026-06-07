@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Check, Shield, Zap, Clock, CreditCard, ArrowRight } from 'lucide-react';
+import { Check, Shield, Zap, Clock, CreditCard, ArrowRight, Copy, CheckCircle } from 'lucide-react';
 import { getShared, setShared } from '../utils/sharedData';
 
 interface PaymentRequest {
@@ -10,6 +10,7 @@ interface PaymentRequest {
   userEmail: string;
   plan: string;
   amount: number;
+  paymentMethod?: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
 }
@@ -39,6 +40,19 @@ export default function Subscription() {
   const [step, setStep] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
   const [pendingRequest, setPendingRequest] = useState<PaymentRequest | null>(null);
+  const [payMethod, setPayMethod] = useState<'btc' | 'usdt'>('btc');
+  const [copied, setCopied] = useState(false);
+
+  const cryptoAddresses = {
+    btc: '1GY7HzPVViH6vsHr7NynzP2yxRN5ACfsFU',
+    usdt: 'TSTc1MDBryVmcCzLi8zoSbcTFznBU89GZV',
+  };
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(cryptoAddresses[payMethod]);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -73,6 +87,7 @@ export default function Subscription() {
       userEmail: user.email,
       plan: selectedPlan.id,
       amount: selectedPlan.price,
+      paymentMethod: payMethod.toUpperCase(),
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
@@ -192,30 +207,94 @@ export default function Subscription() {
 
       {/* Step 2: Pay */}
       {step === 2 && selectedPlan && (
-        <div style={{ maxWidth: 480, margin: '0 auto' }}>
+        <div style={{ maxWidth: 520, margin: '0 auto' }}>
           <div style={{
             background: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 28,
           }}>
             <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <CreditCard size={20} color="#3b82f6" /> Payment Details
+              <CreditCard size={20} color="#3b82f6" /> Send Payment
             </h3>
 
+            {/* Order summary */}
             <div style={{
               padding: 16, background: '#0f172a', borderRadius: 10, border: '1px solid #334155', marginBottom: 20,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ color: '#94a3b8', fontSize: 13 }}>Plan</span>
-                <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{selectedPlan.name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ color: '#94a3b8', fontSize: 13 }}>Verifications</span>
-                <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{selectedPlan.id === 'standard' ? '25' : '50'}</span>
+                <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{selectedPlan.name}</span>
               </div>
               <div style={{ borderTop: '1px solid #334155', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#f1f5f9', fontSize: 15, fontWeight: 700 }}>Total</span>
                 <span style={{ color: '#3b82f6', fontSize: 20, fontWeight: 800 }}>${selectedPlan.price}</span>
               </div>
             </div>
+
+            {/* Payment method tabs */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              {([
+                { id: 'btc' as const, label: 'Bitcoin (BTC)', color: '#f7931a' },
+                { id: 'usdt' as const, label: 'USDT (TRX)', color: '#26a17b' },
+              ]).map(({ id, label, color }) => (
+                <button
+                  key={id}
+                  onClick={() => { setPayMethod(id); setCopied(false); }}
+                  style={{
+                    flex: 1, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    background: payMethod === id ? `${color}20` : '#0f172a',
+                    border: `2px solid ${payMethod === id ? color : '#334155'}`,
+                    color: payMethod === id ? color : '#94a3b8',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* QR Code */}
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{
+                display: 'inline-block', padding: 12, background: '#fff', borderRadius: 12,
+              }}>
+                <img
+                  src={payMethod === 'btc' ? '/qr-btc.jpg' : '/qr-usdt.jpg'}
+                  alt={`${payMethod.toUpperCase()} QR Code`}
+                  style={{ width: 200, height: 200, display: 'block' }}
+                />
+              </div>
+            </div>
+
+            {/* Network */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '10px 14px', background: '#0f172a', borderRadius: 8, border: '1px solid #334155', marginBottom: 10,
+            }}>
+              <span style={{ color: '#64748b', fontSize: 13 }}>Network</span>
+              <span style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 700 }}>
+                {payMethod === 'btc' ? 'BTC' : 'TRX'}
+              </span>
+            </div>
+
+            {/* Address */}
+            <div style={{
+              padding: '10px 14px', background: '#0f172a', borderRadius: 8, border: '1px solid #334155', marginBottom: 10,
+            }}>
+              <div style={{ color: '#64748b', fontSize: 12, marginBottom: 4 }}>Address</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600, wordBreak: 'break-all', flex: 1 }}>
+                  {cryptoAddresses[payMethod]}
+                </span>
+                <button onClick={copyAddress} style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0,
+                }}>
+                  {copied ? <CheckCircle size={18} color="#22c55e" /> : <Copy size={18} color="#64748b" />}
+                </button>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 11, color: '#475569', marginBottom: 20, lineHeight: 1.5 }}>
+              Don't send NFTs to this address. Send exactly ${selectedPlan.price} worth of {payMethod === 'btc' ? 'BTC' : 'USDT'} to the address above, then click "I've Sent Payment" below.
+            </p>
 
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={() => setStep(1)} style={{
@@ -229,7 +308,7 @@ export default function Subscription() {
                 border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 600,
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}>
-                Submit Payment Request <ArrowRight size={16} />
+                I've Sent Payment <ArrowRight size={16} />
               </button>
             </div>
           </div>
