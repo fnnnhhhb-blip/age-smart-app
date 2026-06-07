@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+dist-build/
+*.exe
+*.dmg
+*.AppImage
+.DS_Store
+*.log
