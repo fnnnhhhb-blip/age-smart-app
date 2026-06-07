@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { CreditCard, Star, Zap, Crown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CreditCard, Star, Zap, Crown, Clock, CheckCircle, XCircle } from 'lucide-react';
 
 interface User {
   id: string;
@@ -8,12 +8,36 @@ interface User {
   subscription: string;
 }
 
+interface PaymentRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  plan: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
 function getUsers(): User[] {
   return JSON.parse(localStorage.getItem('agesmart_users') || '[]');
 }
 
+function getPaymentRequests(): PaymentRequest[] {
+  return JSON.parse(localStorage.getItem('agesmart_payment_requests') || '[]');
+}
+
 export default function Subscriptions() {
-  const users = getUsers();
+  const [users, setUsers] = useState<User[]>(getUsers());
+  const [requests, setRequests] = useState<PaymentRequest[]>(getPaymentRequests());
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRequests(getPaymentRequests());
+      setUsers(getUsers());
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const plans = [
     { id: 'free', name: 'Free', icon: Star, color: '#64748b', price: '$0/mo' },
@@ -29,10 +53,44 @@ export default function Subscriptions() {
     return sum;
   }, 0);
 
+  const pendingCount = requests.filter((r) => r.status === 'pending').length;
+  const filteredRequests = filter === 'all' ? requests : requests.filter((r) => r.status === filter);
+
+  const handleApprove = (requestId: string) => {
+    const updated = requests.map((r) => {
+      if (r.id === requestId) {
+        // Update user's subscription
+        const allUsers = getUsers();
+        const userIdx = allUsers.findIndex((u) => u.id === r.userId);
+        if (userIdx >= 0) {
+          allUsers[userIdx].subscription = r.plan;
+          localStorage.setItem('agesmart_users', JSON.stringify(allUsers));
+          setUsers(allUsers);
+        }
+        return { ...r, status: 'approved' as const };
+      }
+      return r;
+    });
+    localStorage.setItem('agesmart_payment_requests', JSON.stringify(updated));
+    setRequests(updated);
+  };
+
+  const handleReject = (requestId: string) => {
+    const updated = requests.map((r) =>
+      r.id === requestId ? { ...r, status: 'rejected' as const } : r
+    );
+    localStorage.setItem('agesmart_payment_requests', JSON.stringify(updated));
+    setRequests(updated);
+  };
+
+  const planColors: Record<string, string> = {
+    free: '#64748b', premium: '#a855f7', enterprise: '#eab308',
+  };
+
   return (
     <div>
-      <h1 style={{ fontSize: 28, fontWeight: 800, color: '#f1f5f9', marginBottom: 8 }}>Subscription Overview</h1>
-      <p style={{ color: '#64748b', fontSize: 15, marginBottom: 32 }}>Monitor subscription plans and revenue</p>
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: '#f1f5f9', marginBottom: 8 }}>Subscription Management</h1>
+      <p style={{ color: '#64748b', fontSize: 15, marginBottom: 32 }}>Manage payment requests and subscriptions</p>
 
       {/* Revenue card */}
       <div style={{
@@ -68,6 +126,111 @@ export default function Subscriptions() {
             </div>
           );
         })}
+      </div>
+
+      {/* Payment Requests */}
+      <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 24, marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+            Payment Requests
+            {pendingCount > 0 && (
+              <span style={{
+                padding: '2px 10px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
+                background: 'rgba(234,179,8,0.2)', color: '#eab308',
+              }}>
+                {pendingCount} pending
+              </span>
+            )}
+          </h3>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['all', 'pending', 'approved', 'rejected'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  textTransform: 'capitalize', cursor: 'pointer',
+                  background: filter === f ? 'rgba(239,68,68,0.15)' : 'transparent',
+                  border: `1px solid ${filter === f ? '#ef4444' : '#334155'}`,
+                  color: filter === f ? '#ef4444' : '#94a3b8',
+                }}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredRequests.length === 0 ? (
+          <p style={{ color: '#475569', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>No payment requests</p>
+        ) : (
+          filteredRequests.map((req) => (
+            <div key={req.id} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px', marginBottom: 8, background: '#0f172a', borderRadius: 12, border: '1px solid #334155',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 10,
+                  background: req.status === 'pending' ? 'rgba(234,179,8,0.1)' : req.status === 'approved' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {req.status === 'pending' ? <Clock size={20} color="#eab308" /> :
+                   req.status === 'approved' ? <CheckCircle size={20} color="#22c55e" /> :
+                   <XCircle size={20} color="#ef4444" />}
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>{req.userName}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{req.userEmail}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  padding: '4px 12px', borderRadius: 9999, fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                  background: `${planColors[req.plan] || '#64748b'}20`,
+                  color: planColors[req.plan] || '#64748b',
+                }}>
+                  {req.plan}
+                </div>
+                <div style={{ fontSize: 12, color: '#475569' }}>
+                  {new Date(req.createdAt).toLocaleDateString()}
+                </div>
+                {req.status === 'pending' ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => handleApprove(req.id)}
+                      style={{
+                        padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)',
+                        color: '#22c55e', cursor: 'pointer',
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleReject(req.id)}
+                      style={{
+                        padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                        color: '#ef4444', cursor: 'pointer',
+                      }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{
+                    padding: '4px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                    background: req.status === 'approved' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                    color: req.status === 'approved' ? '#22c55e' : '#ef4444',
+                  }}>
+                    {req.status}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Subscribers list */}

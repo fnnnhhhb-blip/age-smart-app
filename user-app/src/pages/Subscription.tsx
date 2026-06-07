@@ -1,5 +1,16 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Check, Star, Zap, Crown } from 'lucide-react';
+import { Check, Star, Zap, Crown, Clock } from 'lucide-react';
+
+interface PaymentRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  plan: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
 
 const plans = [
   {
@@ -33,27 +44,86 @@ const plans = [
 ];
 
 export default function Subscription() {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
+  const [pendingRequest, setPendingRequest] = useState<PaymentRequest | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleSelect = (planId: string) => {
-    updateUser({ subscription: planId as 'free' | 'premium' | 'enterprise' });
+  useEffect(() => {
+    const requests: PaymentRequest[] = JSON.parse(localStorage.getItem('agesmart_payment_requests') || '[]');
+    const myPending = requests.find(
+      (r) => r.userId === user?.id && r.status === 'pending'
+    );
+    setPendingRequest(myPending || null);
+  }, [user?.id]);
+
+  const handleRequestPlan = (planId: string) => {
+    if (!user || planId === user.subscription) return;
+
+    const requests: PaymentRequest[] = JSON.parse(localStorage.getItem('agesmart_payment_requests') || '[]');
+
+    // Remove any existing pending request from this user
+    const filtered = requests.filter((r) => !(r.userId === user.id && r.status === 'pending'));
+
+    const newRequest: PaymentRequest = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      plan: planId,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+
+    filtered.push(newRequest);
+    localStorage.setItem('agesmart_payment_requests', JSON.stringify(filtered));
+    setPendingRequest(newRequest);
+    setSubmitted(true);
+    setTimeout(() => setSubmitted(false), 3000);
   };
 
   return (
     <div>
       <h1 style={{ fontSize: 28, fontWeight: 800, color: '#f1f5f9', marginBottom: 8 }}>Subscription Plans</h1>
-      <p style={{ color: '#64748b', fontSize: 15, marginBottom: 32 }}>Choose the plan that works best for you</p>
+      <p style={{ color: '#64748b', fontSize: 15, marginBottom: 16 }}>Choose the plan that works best for you</p>
+
+      {/* Pending request banner */}
+      {pendingRequest && (
+        <div style={{
+          padding: '14px 20px', background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)',
+          borderRadius: 12, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <Clock size={20} color="#eab308" />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#eab308' }}>Payment Request Pending</div>
+            <div style={{ fontSize: 13, color: '#94a3b8' }}>
+              Your request for the <strong style={{ color: '#e2e8f0', textTransform: 'capitalize' }}>{pendingRequest.plan}</strong> plan
+              is awaiting admin approval.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {submitted && !pendingRequest && (
+        <div style={{
+          padding: '14px 20px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
+          borderRadius: 12, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <Check size={20} color="#22c55e" />
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#22c55e' }}>Payment request submitted!</div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, alignItems: 'start' }}>
         {plans.map((plan) => {
           const Icon = plan.icon;
           const isActive = user?.subscription === plan.id;
+          const isPendingThis = pendingRequest?.plan === plan.id;
           return (
             <div
               key={plan.id}
               style={{
                 background: '#1e293b',
-                border: `2px solid ${isActive ? plan.color : plan.popular ? plan.color + '60' : '#334155'}`,
+                border: `2px solid ${isActive ? plan.color : isPendingThis ? '#eab308' + '60' : plan.popular ? plan.color + '60' : '#334155'}`,
                 borderRadius: 16,
                 padding: 28,
                 position: 'relative',
@@ -94,17 +164,30 @@ export default function Subscription() {
               </div>
 
               <button
-                onClick={() => handleSelect(plan.id)}
-                disabled={isActive}
+                onClick={() => handleRequestPlan(plan.id)}
+                disabled={isActive || isPendingThis}
                 style={{
                   width: '100%', padding: '12px',
-                  background: isActive ? `${plan.color}20` : `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
-                  border: isActive ? `1px solid ${plan.color}40` : 'none',
-                  borderRadius: 10, color: isActive ? plan.color : '#fff',
-                  fontSize: 14, fontWeight: 600, cursor: isActive ? 'default' : 'pointer',
+                  background: isActive
+                    ? `${plan.color}20`
+                    : isPendingThis
+                      ? 'rgba(234,179,8,0.15)'
+                      : `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
+                  border: isActive
+                    ? `1px solid ${plan.color}40`
+                    : isPendingThis
+                      ? '1px solid rgba(234,179,8,0.4)'
+                      : 'none',
+                  borderRadius: 10,
+                  color: isActive ? plan.color : isPendingThis ? '#eab308' : '#fff',
+                  fontSize: 14, fontWeight: 600,
+                  cursor: isActive || isPendingThis ? 'default' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
               >
-                {isActive ? 'Current Plan' : 'Select Plan'}
+                {isActive ? 'Current Plan' : isPendingThis ? (
+                  <><Clock size={14} /> Pending Approval</>
+                ) : 'Request Plan'}
               </button>
             </div>
           );
