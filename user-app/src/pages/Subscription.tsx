@@ -215,17 +215,29 @@ export default function Subscription() {
               <CreditCard size={20} color="#3b82f6" /> Send Payment
             </h3>
 
-            {/* Order summary */}
-            <div style={{
-              padding: 16, background: '#0f172a', borderRadius: 10, border: '1px solid #334155', marginBottom: 20,
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ color: '#94a3b8', fontSize: 13 }}>Plan</span>
-                <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{selectedPlan.name}</span>
-              </div>
-              <div style={{ borderTop: '1px solid #334155', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#f1f5f9', fontSize: 15, fontWeight: 700 }}>Total</span>
-                <span style={{ color: '#3b82f6', fontSize: 20, fontWeight: 800 }}>${selectedPlan.price}</span>
+            {/* Plan selection */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ color: '#94a3b8', fontSize: 12, marginBottom: 8 }}>Select Plan</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {plans.map((plan) => (
+                  <button
+                    key={plan.id}
+                    onClick={() => setSelectedPlan(plan)}
+                    style={{
+                      flex: 1, padding: '12px 16px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.2s',
+                      background: selectedPlan.id === plan.id ? 'rgba(59,130,246,0.1)' : '#0f172a',
+                      border: `2px solid ${selectedPlan.id === plan.id ? '#3b82f6' : '#334155'}`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 700, color: selectedPlan.id === plan.id ? '#3b82f6' : '#e2e8f0' }}>
+                      {plan.name}
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: selectedPlan.id === plan.id ? '#3b82f6' : '#94a3b8', marginTop: 2 }}>
+                      ${plan.price}
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
 
