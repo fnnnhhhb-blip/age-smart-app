@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getShared, setShared } from '../utils/sharedData';
 
 interface User {
   id: string;
@@ -22,6 +23,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+async function getUsers(): Promise<(User & { password: string })[]> {
+  const raw = await getShared('agesmart_users');
+  return raw ? JSON.parse(raw) : [];
+}
+
+async function saveUsers(users: (User & { password: string })[]) {
+  await setShared('agesmart_users', users);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
@@ -31,6 +41,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(JSON.parse(saved));
     }
   }, []);
+
+  // Poll for subscription changes from admin approval
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(async () => {
+      const users = await getUsers();
+      const current = users.find((u) => u.id === user.id);
+      if (current && current.subscription !== user.subscription) {
+        const updated = { ...user, subscription: current.subscription };
+        setUser(updated);
+        localStorage.setItem('agesmart_user', JSON.stringify(updated));
+      }
+      if (current && current.verificationStatus !== user.verificationStatus) {
+        const updated = { ...user, verificationStatus: current.verificationStatus, verified: current.verified };
+        setUser(updated);
+        localStorage.setItem('agesmart_user', JSON.stringify(updated));
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const saveUser = (u: User | null) => {
     setUser(u);
@@ -42,8 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, _password: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('agesmart_users') || '[]');
-    const found = users.find((u: User & { password: string }) => u.email === email);
+    const users = await getUsers();
+    const found = users.find((u) => u.email === email);
     if (found) {
       const { password: _, ...userData } = found;
       saveUser(userData);
@@ -53,8 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signup = async (name: string, email: string, password: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('agesmart_users') || '[]');
-    if (users.find((u: { email: string }) => u.email === email)) {
+    const users = await getUsers();
+    if (users.find((u) => u.email === email)) {
       return false;
     }
     const newUser = {
@@ -68,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
     };
     users.push(newUser);
-    localStorage.setItem('agesmart_users', JSON.stringify(users));
+    await saveUsers(users);
     const { password: _, ...userData } = newUser;
     saveUser(userData);
     return true;
@@ -78,15 +108,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveUser(null);
   };
 
-  const updateUser = (updates: Partial<User>) => {
+  const updateUser = async (updates: Partial<User>) => {
     if (user) {
       const updated = { ...user, ...updates };
       saveUser(updated);
-      const users = JSON.parse(localStorage.getItem('agesmart_users') || '[]');
-      const idx = users.findIndex((u: { id: string }) => u.id === user.id);
+      const users = await getUsers();
+      const idx = users.findIndex((u) => u.id === user.id);
       if (idx !== -1) {
         users[idx] = { ...users[idx], ...updates };
-        localStorage.setItem('agesmart_users', JSON.stringify(users));
+        await saveUsers(users);
       }
     }
   };

@@ -1,14 +1,32 @@
+import { useState, useEffect } from 'react';
 import { Users, CheckCircle, CreditCard, Globe, TrendingUp, Activity } from 'lucide-react';
+import { getShared } from '../utils/sharedData';
 
-function getUsers() {
-  return JSON.parse(localStorage.getItem('agesmart_users') || '[]');
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  verificationStatus: string;
+  subscription: string;
+  createdAt: string;
 }
 
 export default function Overview() {
-  const users = getUsers();
-  const verified = users.filter((u: { verificationStatus: string }) => u.verificationStatus === 'approved').length;
-  const pending = users.filter((u: { verificationStatus: string }) => u.verificationStatus === 'pending').length;
-  const premiumUsers = users.filter((u: { subscription: string }) => u.subscription === 'premium' || u.subscription === 'enterprise').length;
+  const [users, setUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const raw = await getShared('agesmart_users');
+      setUsers(raw ? JSON.parse(raw) : []);
+    };
+    load();
+    const interval = setInterval(load, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const verified = users.filter((u) => u.verificationStatus === 'approved').length;
+  const pending = users.filter((u) => u.verificationStatus === 'pending').length;
+  const premiumUsers = users.filter((u) => u.subscription === 'premium' || u.subscription === 'enterprise').length;
 
   const stats = [
     { label: 'Total Users', value: users.length, icon: Users, color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
@@ -47,7 +65,7 @@ export default function Overview() {
           {users.length === 0 ? (
             <p style={{ color: '#475569', fontSize: 14 }}>No users yet</p>
           ) : (
-            users.slice(-5).reverse().map((u: { id: string; name: string; email: string; createdAt: string }) => (
+            users.slice(-5).reverse().map((u) => (
               <div key={u.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '10px 0', borderBottom: '1px solid #334155',

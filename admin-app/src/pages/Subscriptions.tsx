@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CreditCard, Star, Zap, Crown, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { getShared, setShared } from '../utils/sharedData';
 
 interface User {
   id: string;
@@ -18,24 +19,20 @@ interface PaymentRequest {
   createdAt: string;
 }
 
-function getUsers(): User[] {
-  return JSON.parse(localStorage.getItem('agesmart_users') || '[]');
-}
-
-function getPaymentRequests(): PaymentRequest[] {
-  return JSON.parse(localStorage.getItem('agesmart_payment_requests') || '[]');
-}
-
 export default function Subscriptions() {
-  const [users, setUsers] = useState<User[]>(getUsers());
-  const [requests, setRequests] = useState<PaymentRequest[]>(getPaymentRequests());
+  const [users, setUsers] = useState<User[]>([]);
+  const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRequests(getPaymentRequests());
-      setUsers(getUsers());
-    }, 2000);
+    const load = async () => {
+      const usersRaw = await getShared('agesmart_users');
+      const reqsRaw = await getShared('agesmart_payment_requests');
+      setUsers(usersRaw ? JSON.parse(usersRaw) : []);
+      setRequests(reqsRaw ? JSON.parse(reqsRaw) : []);
+    };
+    load();
+    const interval = setInterval(load, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -56,30 +53,29 @@ export default function Subscriptions() {
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
   const filteredRequests = filter === 'all' ? requests : requests.filter((r) => r.status === filter);
 
-  const handleApprove = (requestId: string) => {
+  const handleApprove = async (requestId: string) => {
     const updated = requests.map((r) => {
       if (r.id === requestId) {
-        // Update user's subscription
-        const allUsers = getUsers();
+        const allUsers = [...users];
         const userIdx = allUsers.findIndex((u) => u.id === r.userId);
         if (userIdx >= 0) {
           allUsers[userIdx].subscription = r.plan;
-          localStorage.setItem('agesmart_users', JSON.stringify(allUsers));
+          setShared('agesmart_users', allUsers);
           setUsers(allUsers);
         }
         return { ...r, status: 'approved' as const };
       }
       return r;
     });
-    localStorage.setItem('agesmart_payment_requests', JSON.stringify(updated));
+    await setShared('agesmart_payment_requests', updated);
     setRequests(updated);
   };
 
-  const handleReject = (requestId: string) => {
+  const handleReject = async (requestId: string) => {
     const updated = requests.map((r) =>
       r.id === requestId ? { ...r, status: 'rejected' as const } : r
     );
-    localStorage.setItem('agesmart_payment_requests', JSON.stringify(updated));
+    await setShared('agesmart_payment_requests', updated);
     setRequests(updated);
   };
 

@@ -1,39 +1,44 @@
-import { useState } from 'react';
-import { CheckCircle, XCircle, Clock, Eye } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { getShared, setShared } from '../utils/sharedData';
 
 interface User {
   id: string;
   name: string;
   email: string;
+  verified: boolean;
   verificationStatus: string;
   dateOfBirth?: string;
   createdAt: string;
 }
 
-function getUsers(): User[] {
-  return JSON.parse(localStorage.getItem('agesmart_users') || '[]');
-}
-
-function saveUsers(users: User[]) {
-  localStorage.setItem('agesmart_users', JSON.stringify(users));
-}
-
 export default function Verifications() {
-  const [users, setUsers] = useState<User[]>(getUsers());
+  const [users, setUsers] = useState<User[]>([]);
   const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    const load = async () => {
+      const raw = await getShared('agesmart_users');
+      setUsers(raw ? JSON.parse(raw) : []);
+    };
+    load();
+    const interval = setInterval(load, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const filtered = filter === 'all' ? users : users.filter((u) => u.verificationStatus === filter);
 
-  const handleApprove = (id: string) => {
-    const updated = users.map((u) => (u.id === id ? { ...u, verificationStatus: 'approved', verified: true } : u));
-    saveUsers(updated);
+  const saveAndUpdate = async (updated: User[]) => {
+    await setShared('agesmart_users', updated);
     setUsers(updated);
   };
 
+  const handleApprove = (id: string) => {
+    saveAndUpdate(users.map((u) => (u.id === id ? { ...u, verificationStatus: 'approved', verified: true } : u)));
+  };
+
   const handleReject = (id: string) => {
-    const updated = users.map((u) => (u.id === id ? { ...u, verificationStatus: 'rejected', verified: false } : u));
-    saveUsers(updated);
-    setUsers(updated);
+    saveAndUpdate(users.map((u) => (u.id === id ? { ...u, verificationStatus: 'rejected', verified: false } : u)));
   };
 
   const counts = {
@@ -117,14 +122,14 @@ export default function Verifications() {
                     </button>
                   </>
                 ) : (
-                  <div style={{
+                  <span style={{
                     padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                     background: u.verificationStatus === 'approved' ? 'rgba(34,197,94,0.1)' : u.verificationStatus === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
-                    color: u.verificationStatus === 'approved' ? '#22c55e' : u.verificationStatus === 'rejected' ? '#ef4444' : '#94a3b8',
+                    color: u.verificationStatus === 'approved' ? '#22c55e' : u.verificationStatus === 'rejected' ? '#ef4444' : '#64748b',
                     textTransform: 'capitalize',
                   }}>
                     {u.verificationStatus || 'none'}
-                  </div>
+                  </span>
                 )}
               </div>
             </div>

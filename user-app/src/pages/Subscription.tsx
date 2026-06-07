@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Check, Star, Zap, Crown, Clock } from 'lucide-react';
+import { getShared, setShared } from '../utils/sharedData';
 
 interface PaymentRequest {
   id: string;
@@ -49,17 +50,22 @@ export default function Subscription() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    const requests: PaymentRequest[] = JSON.parse(localStorage.getItem('agesmart_payment_requests') || '[]');
-    const myPending = requests.find(
-      (r) => r.userId === user?.id && r.status === 'pending'
-    );
-    setPendingRequest(myPending || null);
+    const load = async () => {
+      const raw = await getShared('agesmart_payment_requests');
+      const requests: PaymentRequest[] = raw ? JSON.parse(raw) : [];
+      const myPending = requests.find(
+        (r) => r.userId === user?.id && r.status === 'pending'
+      );
+      setPendingRequest(myPending || null);
+    };
+    load();
   }, [user?.id]);
 
-  const handleRequestPlan = (planId: string) => {
+  const handleRequestPlan = async (planId: string) => {
     if (!user || planId === user.subscription) return;
 
-    const requests: PaymentRequest[] = JSON.parse(localStorage.getItem('agesmart_payment_requests') || '[]');
+    const raw = await getShared('agesmart_payment_requests');
+    const requests: PaymentRequest[] = raw ? JSON.parse(raw) : [];
 
     // Remove any existing pending request from this user
     const filtered = requests.filter((r) => !(r.userId === user.id && r.status === 'pending'));
@@ -75,7 +81,7 @@ export default function Subscription() {
     };
 
     filtered.push(newRequest);
-    localStorage.setItem('agesmart_payment_requests', JSON.stringify(filtered));
+    await setShared('agesmart_payment_requests', filtered);
     setPendingRequest(newRequest);
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);

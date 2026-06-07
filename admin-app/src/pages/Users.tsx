@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users as UsersIcon, Search, Trash2, Ban, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { getShared, setShared } from '../utils/sharedData';
 
 interface User {
   id: string;
@@ -11,40 +12,41 @@ interface User {
   createdAt: string;
 }
 
-function getUsers(): User[] {
-  return JSON.parse(localStorage.getItem('agesmart_users') || '[]');
-}
-
-function saveUsers(users: User[]) {
-  localStorage.setItem('agesmart_users', JSON.stringify(users));
-}
-
 export default function Users() {
-  const [users, setUsers] = useState<User[]>(getUsers());
+  const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      const raw = await getShared('agesmart_users');
+      setUsers(raw ? JSON.parse(raw) : []);
+    };
+    load();
+    const interval = setInterval(load, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const filtered = users.filter(
     (u) => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDelete = (id: string) => {
-    const updated = users.filter((u) => u.id !== id);
-    saveUsers(updated);
+  const saveAndUpdate = async (updated: User[]) => {
+    await setShared('agesmart_users', updated);
     setUsers(updated);
+  };
+
+  const handleDelete = (id: string) => {
+    saveAndUpdate(users.filter((u) => u.id !== id));
   };
 
   const handleToggleBan = (id: string) => {
-    const updated = users.map((u) =>
+    saveAndUpdate(users.map((u) =>
       u.id === id ? { ...u, verified: !u.verified, verificationStatus: u.verificationStatus === 'approved' ? 'rejected' : 'approved' } : u
-    );
-    saveUsers(updated);
-    setUsers(updated);
+    ));
   };
 
   const handleChangeSubscription = (id: string, sub: string) => {
-    const updated = users.map((u) => (u.id === id ? { ...u, subscription: sub } : u));
-    saveUsers(updated);
-    setUsers(updated);
+    saveAndUpdate(users.map((u) => (u.id === id ? { ...u, subscription: sub } : u)));
   };
 
   const statusIcon = (status: string) => {
