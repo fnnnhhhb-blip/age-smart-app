@@ -7,3 +7,4 @@ dist-build/
 *.AppImage
 .DS_Store
 *.log
+server/data.json
